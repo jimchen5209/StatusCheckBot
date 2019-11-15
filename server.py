@@ -35,8 +35,12 @@ import status
 app = Flask(__name__)
 
 
-@app.route('/getStatus', methods=['GET'])
+@app.route('/', methods=['GET'])
 def index():
+    return "You've entered jimchen5209's status api."
+
+@app.route('/getStatus', methods=['GET'])
+def get_status():
     return status.get_status()
 
 
