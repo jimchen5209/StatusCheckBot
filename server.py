@@ -20,10 +20,15 @@ import status
 app = Flask(__name__)
 
 
-@app.route('/getStatus')
+@app.route('/')
 def index():
+    return "You've entered server program status API"
+
+
+@app.route('/getStatus')
+def get_status():
     return status.get_status()
 
 
 if __name__ == '__main__':
-    app.run()
+    app.run(host="0.0.0.0")
