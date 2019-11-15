@@ -29,13 +29,16 @@
 
 from flask import Flask
 from gevent.pywsgi import WSGIServer
+
 import status
 
 app = Flask(__name__)
 
+
 @app.route('/getStatus', methods=['GET'])
 def index():
-    return status.getStatus()
+    return status.get_status()
+
 
 if __name__ == '__main__':
     http_server = WSGIServer(('0.0.0.0', 5000), app)
