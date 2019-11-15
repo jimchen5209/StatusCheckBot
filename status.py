@@ -23,5 +23,3 @@ def getStatus():
                 status[bot_status['name']] = {'online': False}
             f.close()
     return status
-
-print(getStatus())
