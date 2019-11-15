@@ -3,7 +3,7 @@ import status
 
 app = Flask(__name__)
 
-@app.route('/')
+@app.route('/getStatus')
 def index():
     return status.getStatus()
 
