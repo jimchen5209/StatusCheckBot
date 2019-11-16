@@ -32,8 +32,10 @@ from flask import Flask
 from flask_classful import route, FlaskView
 from gevent.pywsgi import WSGIServer
 
-import status
-from config import Config
+from config import Config, ServerType
+from status import Status
+
+status = Status()
 
 
 class StatusServer:
@@ -47,6 +49,8 @@ class StatusServer:
         self.port = self.__config.web_server.port
         self.content = FlaskApp()
         self.content.register(self.app, route_base="/")
+        if config.server_type == ServerType.MAIN:
+            status.update_nodes(config.nodes)
 
     def start_server(self):
         self.__logger.info("Stating Web Server...")

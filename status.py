@@ -27,29 +27,75 @@
 #  You should have received a copy of the GNU Affero General Public License
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import psutil
-import os
 import json
+import logging
+import os
 from pathlib import Path
 
-path = str(Path.home()) + '/.bot_status'
-
-if not os.path.isdir(path):
-    os.mkdir(path)
+import psutil
+import requests
 
 
-def get_status():
-    status = {}
+class Status:
+    __path = str(Path.home()) + '/.bot_status'
+    data = {}
 
-    for walk in os.walk(path):
-        for file in walk[2]:
-            with open(path + '/' + file, 'r') as fs:
-                bot_status = json.loads(fs.read())
+    def __init__(self):
+        self.__logger = logging.getLogger("Status")
+        logging.basicConfig(level=logging.INFO)
+        if not os.path.isdir(self.__path):
+            os.mkdir(self.__path)
+        self.nodes = []
+
+    def update_nodes(self, nodes: list):
+        self.nodes = nodes
+
+    def get_status(self) -> dict:
+        self.__update_status()
+        return self.data
+
+    def __update_status(self):
+        self.data.clear()
+        for walk in os.walk(self.__path):
+            for file in walk[2]:
+                with open(self.__path + '/' + file, 'r') as fs:
+                    bot_status = json.loads(fs.read())
+                try:
+                    p = psutil.Process(bot_status['pid'])
+                    if p.cmdline()[1] == bot_status['cmdline'][0] and p.name().startswith('python'):
+                        self.data[bot_status['name']] = {'online': True}
+                except psutil.NoSuchProcess:
+                    self.data[bot_status['name']] = {'online': False}
+        if len(self.nodes) != 0:
+            self.__update_node()
+
+    def __update_node(self):
+        for url in self.nodes:
+            self.__logger.info("Syncing from {url}...".format(url=url))
             try:
-                p = psutil.Process(bot_status['pid'])
-                if p.cmdline()[1] == bot_status['cmdline'][0] and p.name().startswith('python'):
-                    status[bot_status['name']] = {'online': True}
-            except psutil.NoSuchProcess:
-                status[bot_status['name']] = {'online': False}
+                r = requests.get("{base_url}/getStatus".format(base_url=url))
+            except requests.exceptions.ConnectionError as e1:
+                self.__logger.error(str(e1.args))
+                continue
+            else:
+                if r.status_code == requests.codes.ok:
+                    self.__merge_content(json.loads(r.text))
+                else:
+                    self.__logger.error("Server returned {code} : {msg}".format(code=str(r.status_code), msg=str(r.reason)))
 
-    return status
+    def __merge_content(self, new_data: dict):
+        for i in new_data:
+            if i not in self.data:
+                self.data[i] = new_data[i]
+            else:
+                self.__logger.warning(
+                    "{name} exists on both server side, trying to merge, consider deleting one of them".format(name=i))
+                if not self.data[i] and new_data[i]:
+                    self.data[i] = True
+                elif self.data[i] and not new_data[i]:
+                    pass
+                elif self.data[i] and new_data[i]:
+                    self.__logger.warning(
+                        "{name} are both online!!! Consider closing or rename one of them".format(name=i))
+                else:
+                    pass
