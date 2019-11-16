@@ -57,6 +57,7 @@ class StatusServer:
             status.set_node_mode()
 
     def refresh(self):
+        self.__logger.info("Auto refreshing...")
         # and diff
         old = status.get_status().copy()
         status.update_status()
