@@ -3,3 +3,5 @@ psutil
 flask
 flask-classful
 gevent
+aiogram
+ujson

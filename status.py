@@ -35,6 +35,8 @@ from pathlib import Path
 import psutil
 import requests
 
+from telegram import Telegram, ServerStatus
+
 
 class Status:
     __path = str(Path.home()) + '/.bot_status'
@@ -45,7 +47,8 @@ class Status:
         logging.basicConfig(level=logging.INFO)
         if not os.path.isdir(self.__path):
             os.mkdir(self.__path)
-        self.nodes = []
+        self.__nodes = []
+        self.__telegram = None
         self.__main_server = True
         self.update_status()
 
@@ -53,8 +56,11 @@ class Status:
         self.__main_server = False
 
     def update_nodes(self, nodes: list):
-        self.nodes = nodes
+        self.__nodes = nodes
         self.update_status()
+
+    def set_telegram(self, telegram: Telegram):
+        self.__telegram = telegram
 
     def get_status(self) -> dict:
         if not self.__main_server:
@@ -80,6 +86,29 @@ class Status:
                 updated[i]['update_type'] = 'removed'
         if len(updated) != 0:
             self.__logger.info("Updated: {0}".format(str(updated)))
+            if self.__telegram:
+                for stat in updated:
+                    current = updated[stat]
+                    if current['update_type'] == 'updated':
+                        self.__telegram.send_status_message(
+                            (ServerStatus.online.value if current['online'] else ServerStatus.offline.value).format(
+                                name=stat
+                            )
+                        )
+                    elif current['update_type'] == 'new':
+                        self.__telegram.send_status_message(
+                            (
+                                ServerStatus.new_online.value
+                                if current['online'] else
+                                ServerStatus.new_offline.value
+                            ).format(
+                                name=stat
+                            )
+                        )
+                    elif current['update_type'] == 'removed':
+                        self.__telegram.send_status_message(ServerStatus.deleted.value.format(name=stat))
+                    else:
+                        self.__telegram.send_status_message(ServerStatus.unknown.value.format(name=stat))
         return updated
 
     def __update_status(self):
@@ -94,22 +123,33 @@ class Status:
                         self.data[bot_status['name']] = {'online': True}
                 except psutil.NoSuchProcess:
                     self.data[bot_status['name']] = {'online': False}
-        if len(self.nodes) != 0:
+        if len(self.__nodes) != 0:
             self.__update_node()
 
     def __update_node(self):
-        for url in self.nodes:
+        for url in self.__nodes:
             self.__logger.info("Syncing from {url}...".format(url=url))
             try:
                 r = requests.get("{base_url}/getStatus/refreshNow".format(base_url=url))
             except requests.exceptions.ConnectionError as e1:
                 self.__logger.error(str(e1.args))
+                if self.__telegram:
+                    self.__telegram.send_status_message(ServerStatus.node_down.value.format(
+                        ip=url,
+                        message=str(e1.args)
+                    ))
                 continue
             else:
                 if r.status_code == requests.codes.ok:
                     self.__merge_content(json.loads(r.text))
                 else:
-                    self.__logger.error("Server returned {code} : {msg}".format(code=str(r.status_code), msg=str(r.reason)))
+                    self.__logger.error(
+                        "Server returned {code} : {msg}".format(code=str(r.status_code), msg=str(r.reason)))
+                    if self.__telegram:
+                        self.__telegram.send_status_message(ServerStatus.node_down.value.format(
+                            ip=url,
+                            message="{code} : {msg}".format(code=str(r.status_code), msg=str(r.reason))
+                        ))
 
     def __merge_content(self, new_data: dict):
         for i in new_data:

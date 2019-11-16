@@ -13,6 +13,9 @@
 #
 #  You should have received a copy of the GNU Affero General Public License
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
+from threading import Thread
+
+from telegram import Telegram
 
 
 def main():
@@ -23,6 +26,10 @@ def main():
     config = ConfigManager().get_config()
     from server import StatusServer
     server = StatusServer(config)
+    if config.telegram_token:
+        telegram = Telegram(config)
+        server.set_telegram(telegram)
+        Thread(target=telegram.start, name="TelegramBot").start()
     server.start_server()
 
 

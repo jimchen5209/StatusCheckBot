@@ -27,6 +27,8 @@ class Config:
         ) if 'web_server' in raw_data else WebServer()
         self.nodes = raw_data['nodes'] if 'nodes' in raw_data else []
         self.refresh_interval = raw_data['refresh_interval'] if 'refresh_interval' in raw_data else 30.0
+        self.telegram_admin = (raw_data['telegram_admin'] if raw_data['telegram_admin'] != -1 else None) \
+            if 'telegram_admin' in raw_data else None
         self.telegram_token = (raw_data['telegram_token'] if raw_data['telegram_token'] != '' else None) \
             if 'telegram_token' in raw_data else None
 
@@ -44,7 +46,9 @@ class Config:
             '//refresh_interval':'Refresh rate of cached data in seconds',
             'refresh_interval': self.refresh_interval,
             '//telegram_token': 'Token of telegram for notifications and subscriptions',
-            'telegram_token': self.telegram_token if self.telegram_token else ''
+            'telegram_token': self.telegram_token if self.telegram_token else '',
+            '//telegram_admin': 'Admin\'s userID',
+            'telegram_admin': self.telegram_admin if self.telegram_admin else -1
         }
 
 

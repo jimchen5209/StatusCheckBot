@@ -35,6 +35,7 @@ from gevent.pywsgi import WSGIServer
 
 from config import Config, ServerType
 from status import Status
+from telegram import Telegram
 
 status = Status()
 
@@ -55,6 +56,11 @@ class StatusServer:
             threading.Timer(self.__config.refresh_interval, self.refresh).start()
         else:
             status.set_node_mode()
+        self.telegram = None
+
+    def set_telegram(self, telegram: Telegram):
+        self.telegram = telegram
+        status.set_telegram(telegram)
 
     def refresh(self):
         self.__logger.info("Auto refreshing...")
