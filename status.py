@@ -62,9 +62,9 @@ class Status:
         return self.data
 
     def update_status(self) -> dict:
-        old = self.get_status().copy()
+        old = self.data.copy()
         self.__update_status()
-        new = self.get_status().copy()
+        new = self.data.copy()
         updated = {}
         for i in new:
             if i not in old:
