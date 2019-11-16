@@ -19,7 +19,8 @@ from server import StatusServer
 
 def main():
     logger = Logger()
-    StatusServer('0.0.0.0', 5000, logger)
+    server = StatusServer('0.0.0.0', 5000, logger)
+    server.start_server()
 
 
 if __name__ == '__main__':
