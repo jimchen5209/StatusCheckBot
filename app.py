@@ -13,15 +13,15 @@
 #
 #  You should have received a copy of the GNU Affero General Public License
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
-from config import ConfigManager
-from logger import Logger
-from server import StatusServer
 
 
 def main():
+    from logger import Logger
     logger = Logger()
     logger.logger.info("Starting...")
+    from config import ConfigManager
     config = ConfigManager().get_config()
+    from server import StatusServer
     server = StatusServer(config)
     server.start_server()
 
