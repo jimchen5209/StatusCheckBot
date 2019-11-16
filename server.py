@@ -53,6 +53,8 @@ class StatusServer:
         if config.server_type == ServerType.MAIN:
             status.update_nodes(config.nodes)
             self.refresh()
+        else:
+            status.set_node_mode()
 
     def refresh(self):
         old = status.get_status().copy()

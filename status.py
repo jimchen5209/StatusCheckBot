@@ -46,13 +46,19 @@ class Status:
         if not os.path.isdir(self.__path):
             os.mkdir(self.__path)
         self.nodes = []
+        self.__main_server = True
         self.update_status()
+
+    def set_node_mode(self):
+        self.__main_server = False
 
     def update_nodes(self, nodes: list):
         self.nodes = nodes
         self.update_status()
 
     def get_status(self) -> dict:
+        if not self.__main_server:
+            self.update_status()
         return self.data
 
     def update_status(self):
