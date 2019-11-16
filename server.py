@@ -28,22 +28,32 @@
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 from flask import Flask
+from flask_classful import route, FlaskView
 from gevent.pywsgi import WSGIServer
 
 import status
-
-app = Flask(__name__)
-
-
-@app.route('/', methods=['GET'])
-def index():
-    return "You've entered jimchen5209's status api."
-
-@app.route('/getStatus', methods=['GET'])
-def get_status():
-    return status.get_status()
+from logger import Logger
 
 
-if __name__ == '__main__':
-    http_server = WSGIServer(('0.0.0.0', 5000), app)
-    http_server.serve_forever()
+class StatusServer(FlaskView):
+    def __init__(self, host: str, port: int, logger: Logger):
+        self.log = logger
+        self.log.logger.info("Initializing Web API...")
+        self.app = Flask(__name__)
+        self.data = status.get_status()
+        self.host = host
+        self.port = port
+        self.register(self.app, base_route="/")
+
+    @route('/', methods=['GET'])
+    def index(self) -> str:
+        return "You've entered jimchen5209's status api."
+
+    @route('/getStatus', methods=['GET'])
+    def get_status(self) -> dict:
+        self.data.update(status.get_status())
+        return self.data
+
+    def start_server(self):
+        http_server = WSGIServer((self.host, self.port), self.app)
+        http_server.serve_forever()
