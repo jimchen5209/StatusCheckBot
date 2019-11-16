@@ -52,7 +52,7 @@ class StatusServer:
         self.content.register(self.app, route_base="/")
         if config.server_type == ServerType.MAIN:
             status.update_nodes(config.nodes)
-        self.refresh()
+            self.refresh()
 
     def refresh(self):
         old = status.get_status().copy()
