@@ -19,6 +19,7 @@ from server import StatusServer
 
 def main():
     logger = Logger()
+    logger.logger.info("Starting...")
     server = StatusServer('0.0.0.0', 5000, logger)
     server.start_server()
 

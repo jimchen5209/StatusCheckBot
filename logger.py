@@ -29,11 +29,11 @@ class Logger:
     def __init__(self):
         if not os.path.isdir("./logs"):
             os.mkdir("./logs")
-        self.__log_format = "[%(asctime)s][%(threadName)s/%(name)s]%(levelname)s %(message)s"
+        self.__log_format = "[%(asctime)s][%(threadName)s/%(name)s][%(levelname)s] %(message)s"
         logging.root.name = "Main"
-        logging.root.setLevel(logging.INFO)
 
         self.logger = logging.getLogger()
+        logging.basicConfig(format=self.__log_format, level=logging.INFO)
         self.__handler = logging.FileHandler(
             filename="{0}.log".format(self.__logPath),
             encoding="utf-8",
