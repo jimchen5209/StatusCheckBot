@@ -61,7 +61,28 @@ class Status:
             self.update_status()
         return self.data
 
-    def update_status(self):
+    def update_status(self) -> dict:
+        old = self.get_status().copy()
+        self.__update_status()
+        new = self.get_status().copy()
+        updated = {}
+        for i in new:
+            if i not in old:
+                updated[i] = new[i].copy()
+                updated[i]['update_type'] = 'new'
+            else:
+                if new[i] != old[i]:
+                    updated[i] = new[i].copy()
+                    updated[i]['update_type'] = 'updated'
+        for i in old:
+            if i not in new:
+                updated[i] = old[i].copy()
+                updated[i]['update_type'] = 'removed'
+        if len(updated) != 0:
+            self.__logger.info("Updated: {0}".format(str(updated)))
+        return updated
+
+    def __update_status(self):
         self.data.clear()
         for walk in os.walk(self.__path):
             for file in walk[2]:
