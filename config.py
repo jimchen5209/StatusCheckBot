@@ -26,6 +26,7 @@ class Config:
             port=raw_data['web_server']['port'] if 'port' in raw_data['web_server'] else 5000
         ) if 'web_server' in raw_data else WebServer()
         self.nodes = raw_data['nodes'] if 'nodes' in raw_data else []
+        self.refresh_interval = raw_data['refresh_interval'] if 'refresh_interval' in raw_data else 30.0
         self.telegram_token = (raw_data['telegram_token'] if raw_data['telegram_token'] != '' else None) \
             if 'telegram_token' in raw_data else None
 
@@ -40,6 +41,8 @@ class Config:
                 'host': self.web_server.host,
                 'port': self.web_server.port
             },
+            '//refresh_interval':'Refresh rate of cached data in seconds',
+            'refresh_interval': self.refresh_interval,
             '//telegram_token': 'Token of telegram for notifications and subscriptions',
             'telegram_token': self.telegram_token if self.telegram_token else ''
         }

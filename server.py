@@ -27,6 +27,7 @@
 #  You should have received a copy of the GNU Affero General Public License
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 import logging
+import threading
 
 from flask import Flask
 from flask_classful import route, FlaskView
@@ -51,6 +52,15 @@ class StatusServer:
         self.content.register(self.app, route_base="/")
         if config.server_type == ServerType.MAIN:
             status.update_nodes(config.nodes)
+        self.refresh()
+
+    def refresh(self):
+        old = status.get_status().copy()
+        status.update_status()
+        new = status.get_status().copy()
+        value = {k: new[k] for k in set(new) - set(old)}
+        print(value)
+        threading.Timer(self.__config.refresh_interval, self.refresh).start()
 
     def start_server(self):
         self.__logger.info("Stating Web Server...")
@@ -61,7 +71,6 @@ class StatusServer:
 
 class FlaskApp(FlaskView):
     def __init__(self):
-        self.data = status.get_status()
         self.default_methods = ['GET']
 
     @route('/')
@@ -70,5 +79,9 @@ class FlaskApp(FlaskView):
 
     @route('/getStatus')
     def get_status(self) -> dict:
-        self.data.update(status.get_status())
-        return self.data
+        return status.get_status()
+
+    @route('/getStatus/refreshNow')
+    def update_and_get_status(self) -> dict:
+        status.update_status()
+        return status.get_status()

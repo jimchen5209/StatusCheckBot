@@ -46,15 +46,16 @@ class Status:
         if not os.path.isdir(self.__path):
             os.mkdir(self.__path)
         self.nodes = []
+        self.update_status()
 
     def update_nodes(self, nodes: list):
         self.nodes = nodes
+        self.update_status()
 
     def get_status(self) -> dict:
-        self.__update_status()
         return self.data
 
-    def __update_status(self):
+    def update_status(self):
         self.data.clear()
         for walk in os.walk(self.__path):
             for file in walk[2]:
@@ -73,7 +74,7 @@ class Status:
         for url in self.nodes:
             self.__logger.info("Syncing from {url}...".format(url=url))
             try:
-                r = requests.get("{base_url}/getStatus".format(base_url=url))
+                r = requests.get("{base_url}/getStatus/refreshNow".format(base_url=url))
             except requests.exceptions.ConnectionError as e1:
                 self.__logger.error(str(e1.args))
                 continue
