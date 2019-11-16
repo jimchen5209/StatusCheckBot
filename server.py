@@ -35,7 +35,7 @@ import status
 from logger import Logger
 
 
-class StatusServer():
+class StatusServer:
     def __init__(self, host: str, port: int, logger: Logger):
         self.log = logger
         self.log.logger.info("Initializing Web API...")
@@ -54,11 +54,11 @@ class FlaskApp(FlaskView):
     def __init__(self):
         self.data = status.get_status()
 
-    @route('/', methods=['GET'])
+    @route('/')
     def index(self) -> str:
         return "You've entered jimchen5209's status api."
 
-    @route('/getStatus', methods=['GET'])
+    @route('/getStatus')
     def get_status(self) -> dict:
         self.data.update(status.get_status())
         return self.data
