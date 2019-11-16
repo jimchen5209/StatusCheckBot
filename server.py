@@ -57,11 +57,24 @@ class StatusServer:
             status.set_node_mode()
 
     def refresh(self):
+        # and diff
         old = status.get_status().copy()
         status.update_status()
         new = status.get_status().copy()
-        value = {k: new[k] for k in set(new) - set(old)}
-        print(value)
+        updated = {}
+        for i in new:
+            if i not in old:
+                updated[i] = new[i].copy()
+                updated[i]['update_type'] = 'new'
+            else:
+                if new[i] != old[i]:
+                    updated[i] = new[i].copy()
+                    updated[i]['update_type'] = 'updated'
+        for i in old:
+            if i not in new:
+                updated[i] = old[i].copy()
+                updated[i]['update_type'] = 'removed'
+        self.__logger.info("Updated: {0}".format(str(updated)))
         threading.Timer(self.__config.refresh_interval, self.refresh).start()
 
     def start_server(self):
