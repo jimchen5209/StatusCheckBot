@@ -52,7 +52,7 @@ class StatusServer:
         self.content.register(self.app, route_base="/")
         if config.server_type == ServerType.MAIN:
             status.update_nodes(config.nodes)
-            self.refresh()
+            threading.Timer(self.__config.refresh_interval, self.refresh).start()
         else:
             status.set_node_mode()
 
