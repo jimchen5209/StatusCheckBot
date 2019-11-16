@@ -26,29 +26,32 @@
 #
 #  You should have received a copy of the GNU Affero General Public License
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
+import logging
 
 from flask import Flask
 from flask_classful import route, FlaskView
 from gevent.pywsgi import WSGIServer
 
 import status
-from logger import Logger
+from config import Config
 
 
 class StatusServer:
-    def __init__(self, host: str, port: int, logger: Logger):
-        self.log = logger
-        self.log.logger.info("Initializing Web API...")
+    def __init__(self, config: Config):
+        self.__logger = logging.getLogger("Server")
+        logging.basicConfig(level=logging.INFO)
+        self.__logger.info("Initializing Web API...")
         self.app = Flask(__name__)
-        self.host = host
-        self.port = port
+        self.__config = config
+        self.host = self.__config.web_server.host
+        self.port = self.__config.web_server.port
         self.content = FlaskApp()
         self.content.register(self.app, route_base="/")
 
     def start_server(self):
-        self.log.logger.info("Stating Web Server...")
+        self.__logger.info("Stating Web Server...")
         http_server = WSGIServer((self.host, self.port), self.app)
-        self.log.logger.info("Listening on http://{host}:{port}/".format(host=self.host, port=self.port))
+        self.__logger.info("Listening on http://{host}:{port}/".format(host=self.host, port=self.port))
         http_server.serve_forever()
 
 
