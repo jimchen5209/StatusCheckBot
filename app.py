@@ -13,25 +13,31 @@
 #
 #  You should have received a copy of the GNU Affero General Public License
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
-from threading import Thread
-
-from telegram import Telegram
 
 
-def main():
-    from logger import Logger
-    logger = Logger()
-    logger.logger.info("Starting...")
-    from config import ConfigManager
-    config = ConfigManager().get_config()
-    from server import StatusServer
-    server = StatusServer(config)
-    if config.telegram_token:
-        telegram = Telegram(config)
-        server.set_telegram(telegram)
-        Thread(target=telegram.start, name="TelegramBot").start()
-    server.start_server()
+class Main:
+    def __init__(self):
+        from logger import Logger
+        from config import ConfigManager
+        from server import StatusServer
+        from telegram import Telegram
+        from status import Status
+        self.logger = Logger()
+        self.logger.logger.info("Starting...")
+
+        self.config = ConfigManager().get_config()
+
+        if self.config.telegram_token:
+            self.telegram = Telegram(self)
+            if self.telegram:
+                from threading import Thread
+                Thread(target=self.telegram.start, name="TelegramBot").start()
+
+        self.status = Status(self)
+
+        self.server = StatusServer(self)
+        self.server.start_server()
 
 
 if __name__ == '__main__':
-    main()
+    main = Main()

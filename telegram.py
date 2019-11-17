@@ -19,7 +19,7 @@ from enum import Enum
 
 from aiogram import Bot, Dispatcher, executor, types
 
-from config import Config
+from app import Main
 
 
 class ServerStatus(Enum):
@@ -33,13 +33,14 @@ class ServerStatus(Enum):
 
 
 class Telegram:
-    def __init__(self, config: Config):
+    def __init__(self, main: Main):
         self.__logger = logging.getLogger("Telegram")
         logging.basicConfig(level=logging.INFO)
         self.__logger.info("Loading Telegram...")
-        self.bot = Bot(token=config.telegram_token)
+        self.__main = main
+        self.__config = main.config
+        self.bot = Bot(token=self.__config.telegram_token)
         self.dispatcher = Dispatcher(self.bot)
-        self.__config = config
         self.loop = asyncio.get_event_loop()
 
         @self.dispatcher.message_handler(commands=['start'])
@@ -55,4 +56,4 @@ class Telegram:
         execute.result()
 
     def start(self):
-        executor.start_polling(self.dispatcher,  skip_updates=True)
+        executor.start_polling(self.dispatcher, skip_updates=True)

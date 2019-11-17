@@ -35,39 +35,37 @@ from pathlib import Path
 import psutil
 import requests
 
-from telegram import Telegram, ServerStatus
+from app import Main
+from telegram import ServerStatus
 
 
 class Status:
     __path = str(Path.home()) + '/.bot_status'
     data = {}
 
-    def __init__(self):
+    def __init__(self, main: Main):
         self.__logger = logging.getLogger("Status")
         logging.basicConfig(level=logging.INFO)
         if not os.path.isdir(self.__path):
             os.mkdir(self.__path)
         self.__nodes = []
-        self.__telegram = None
+        self.__telegram = main.telegram
         self.__main_server = True
-        self.update_status()
+        self.update_status(True)
 
     def set_node_mode(self):
         self.__main_server = False
 
-    def update_nodes(self, nodes: list):
+    def update_nodes(self, nodes: list, disable_telegram: bool = False):
         self.__nodes = nodes
-        self.update_status()
-
-    def set_telegram(self, telegram: Telegram):
-        self.__telegram = telegram
+        self.update_status(disable_telegram)
 
     def get_status(self) -> dict:
         if not self.__main_server:
             self.update_status()
         return self.data
 
-    def update_status(self) -> dict:
+    def update_status(self, disable_telegram: bool = False) -> dict:
         old = self.data.copy()
         self.__update_status()
         new = self.data.copy()
@@ -86,7 +84,7 @@ class Status:
                 updated[i]['update_type'] = 'removed'
         if len(updated) != 0:
             self.__logger.info("Updated: {0}".format(str(updated)))
-            if self.__telegram:
+            if self.__telegram and (not disable_telegram):
                 for stat in updated:
                     current = updated[stat]
                     if current['update_type'] == 'updated':
@@ -165,5 +163,6 @@ class Status:
                 elif self.data[i] and new_data[i]:
                     self.__logger.warning(
                         "{name} are both online!!! Consider closing or rename one of them".format(name=i))
+                    self.data[i] = True
                 else:
                     pass

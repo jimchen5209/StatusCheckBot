@@ -30,41 +30,51 @@ import logging
 import threading
 
 from flask import Flask
-from flask_classful import route, FlaskView
 from gevent.pywsgi import WSGIServer
 
-from config import Config, ServerType
-from status import Status
-from telegram import Telegram
-
-status = Status()
+from app import Main
+from config import ServerType
 
 
 class StatusServer:
-    def __init__(self, config: Config):
+    def __init__(self, main: Main):
         self.__logger = logging.getLogger("Server")
         logging.basicConfig(level=logging.INFO)
         self.__logger.info("Initializing Web API...")
+
         self.app = Flask(__name__)
-        self.__config = config
+
+        self.__config = main.config
+        self.__status = main.status
+
         self.host = self.__config.web_server.host
         self.port = self.__config.web_server.port
-        self.content = FlaskApp()
-        self.content.register(self.app, route_base="/")
-        if config.server_type == ServerType.MAIN:
-            status.update_nodes(config.nodes)
+
+        if self.__config.server_type == ServerType.MAIN:
+            self.__status.update_nodes(self.__config.nodes, True)
             threading.Timer(self.__config.refresh_interval, self.refresh).start()
         else:
-            status.set_node_mode()
-        self.telegram = None
+            self.__status.set_node_mode()
 
-    def set_telegram(self, telegram: Telegram):
-        self.telegram = telegram
-        status.set_telegram(telegram)
+        self.telegram = main.telegram
+
+        # api methods
+        @self.app.route('/', methods=['GET'])
+        def index() -> str:
+            return "You've entered jimchen5209's status api."
+
+        @self.app.route('/getStatus', methods=['GET'])
+        def get_status() -> dict:
+            return self.__status.get_status()
+
+        @self.app.route('/getStatus/refreshNow', methods=['GET'])
+        def update_and_get_status() -> dict:
+            self.__status.update_status()
+            return self.__status.get_status()
 
     def refresh(self):
         self.__logger.info("Auto refreshing...")
-        status.update_status()
+        self.__status.update_status()
         threading.Timer(self.__config.refresh_interval, self.refresh).start()
 
     def start_server(self):
@@ -72,21 +82,3 @@ class StatusServer:
         http_server = WSGIServer((self.host, self.port), self.app)
         self.__logger.info("Listening on http://{host}:{port}/".format(host=self.host, port=self.port))
         http_server.serve_forever()
-
-
-class FlaskApp(FlaskView):
-    def __init__(self):
-        self.default_methods = ['GET']
-
-    @route('/')
-    def index(self) -> str:
-        return "You've entered jimchen5209's status api."
-
-    @route('/getStatus')
-    def get_status(self) -> dict:
-        return status.get_status()
-
-    @route('/getStatus/refreshNow')
-    def update_and_get_status(self) -> dict:
-        status.update_status()
-        return status.get_status()
