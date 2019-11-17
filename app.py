@@ -32,6 +32,8 @@ class Main:
             if self.telegram:
                 from threading import Thread
                 Thread(target=self.telegram.start, name="TelegramBot").start()
+        else:
+            self.telegram = None
 
         self.status = Status(self)
 
