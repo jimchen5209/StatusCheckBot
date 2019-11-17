@@ -14,7 +14,9 @@
 #  You should have received a copy of the GNU Affero General Public License
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 import asyncio
+import json
 import logging
+import time
 from enum import Enum
 
 from aiogram import Bot, Dispatcher, executor, types
@@ -54,13 +56,38 @@ class Telegram:
         @self.dispatcher.message_handler(commands=['status'])
         async def get_status(message: types.Message):
             status = self.__main.status.get_status()
-            msg = ""
-            for name in status:
-                if status[name]['online']:
-                    msg += ServerStatus.online_list.value.format(name=name) + '\n'
-                else:
-                    msg += ServerStatus.offline_list.value.format(name=name) + '\n'
-            await message.reply(msg)
+            msg = self.__status_to_string(status)
+            refresh_button = types.inline_keyboard.InlineKeyboardButton(
+                text="🔄 Refresh Now",
+                callback_data=json.dumps({'t': 'refresh', 'o': message.from_user.id})
+            )
+            markup = types.inline_keyboard.InlineKeyboardMarkup().add(refresh_button)
+            await message.reply(msg, reply_markup=markup)
+
+        @self.dispatcher.callback_query_handler()
+        async def on_callback_query(callback_query: types.CallbackQuery):
+            data = json.loads(callback_query.data)
+            if 't' not in data or 'o' not in data:
+                await callback_query.answer("Invalid Button!")
+                await callback_query.message.edit_reply_markup(None)
+                return
+            if data['t'] == 'refresh':
+                if data['o'] != callback_query.message.reply_to_message.from_user.id:
+                    await callback_query.answer("This button is not yours!!", show_alert=True)
+                    return
+                refreshing = types.inline_keyboard.InlineKeyboardButton(
+                    text="🔄 Refreshing...",
+                    callback_data=json.dumps({'t': 'none', 'o': data['o']})
+                )
+                markup = types.inline_keyboard.InlineKeyboardMarkup().add(refreshing)
+                await callback_query.message.edit_reply_markup(markup)
+                self.__main.status.update_status(True)
+                status = self.__main.status.get_status()
+                msg = self.__status_to_string(status)
+                msg += '\nUpdated: {time}'.format(time=time.strftime("%Y/%m/%d %H:%M:%S"))
+                if callback_query.message.text != msg:
+                    await callback_query.message.edit_text(msg, reply_markup=callback_query.message.reply_markup)
+                await callback_query.answer("Updated!")
 
     def send_status_message(self, message: str):
         execute = asyncio.run_coroutine_threadsafe(self.bot.send_message(
@@ -69,6 +96,16 @@ class Telegram:
             parse_mode="Markdown"
         ), self.loop)
         execute.result()
+
+    @staticmethod
+    def __status_to_string(status: dict) -> str:
+        msg = ""
+        for name in status:
+            if status[name]['online']:
+                msg += ServerStatus.online_list.value.format(name=name) + '\n'
+            else:
+                msg += ServerStatus.offline_list.value.format(name=name) + '\n'
+        return msg
 
     def start(self):
         executor.start_polling(self.dispatcher, skip_updates=True)
