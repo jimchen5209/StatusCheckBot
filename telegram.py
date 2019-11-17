@@ -24,7 +24,11 @@ from app import Main
 
 class ServerStatus(Enum):
     online = "✅ {name} is up"
+    online_list = "✅ {name} is online"
+    online_sub = "✅ {name} is currently online"
     offline = "❌ {name} is down"
+    offline_list = "❌ {name} is offline"
+    offline_sub = "❌ {name} is currently offline"
     unknown = "❔ {name} returned a unknown status"
     new_online = "🆕✅ {name} just popped up and indicates online"
     new_offline = "🆕❌ {name} showed up but it is offline"
@@ -45,7 +49,18 @@ class Telegram:
 
         @self.dispatcher.message_handler(commands=['start'])
         async def start(message: types.Message):
-            await message.reply("Hi")
+            await message.reply("Jim's Bot Status")
+
+        @self.dispatcher.message_handler(commands=['status'])
+        async def get_status(message: types.Message):
+            status = self.__main.status.get_status()
+            msg = ""
+            for name in status:
+                if status[name]['online']:
+                    msg += ServerStatus.online_list.value.format(name=name) + '\n'
+                else:
+                    msg += ServerStatus.offline_list.value.format(name=name) + '\n'
+            await message.reply(msg)
 
     def send_status_message(self, message: str):
         execute = asyncio.run_coroutine_threadsafe(self.bot.send_message(
