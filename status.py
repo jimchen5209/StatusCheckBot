@@ -156,13 +156,13 @@ class Status:
             else:
                 self.__logger.warning(
                     "{name} exists on both server side, trying to merge, consider deleting one of them".format(name=i))
-                if not self.data[i] and new_data[i]:
-                    self.data[i] = True
-                elif self.data[i] and not new_data[i]:
+                if not self.data[i]['online'] and new_data[i]['online']:
+                    self.data[i]['online'] = True
+                elif self.data[i]['online'] and not new_data[i]['online']:
                     pass
-                elif self.data[i] and new_data[i]:
+                elif self.data[i]['online'] and new_data[i]['online']:
                     self.__logger.warning(
                         "{name} are both online!!! Consider closing or rename one of them".format(name=i))
-                    self.data[i] = True
+                    self.data[i]['online'] = True
                 else:
                     pass
