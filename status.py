@@ -42,6 +42,7 @@ from telegram import ServerStatus
 class Status:
     __path = str(Path.home()) + '/.bot_status'
     data = {}
+    __last_error={}
 
     def __init__(self, main: Main):
         self.__logger = logging.getLogger("Status")
@@ -131,6 +132,10 @@ class Status:
                 r = requests.get("{base_url}/getStatus/refreshNow".format(base_url=url))
             except requests.exceptions.ConnectionError as e1:
                 self.__logger.error(str(e1.args))
+                if url in self.__last_error:
+                    if e1 == self.__last_error[url]:
+                        continue
+                self.__last_error[url] = e1
                 if self.__telegram:
                     self.__telegram.send_status_message(ServerStatus.node_down.value.format(
                         ip=url,
