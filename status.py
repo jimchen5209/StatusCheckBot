@@ -133,9 +133,9 @@ class Status:
             except requests.exceptions.ConnectionError as e1:
                 self.__logger.error(str(e1.args))
                 if url in self.__last_error:
-                    if e1 == self.__last_error[url]:
+                    if self.__last_error[url] == "ConnectionError":
                         continue
-                self.__last_error[url] = e1
+                self.__last_error[url] = "ConnectionError"
                 if self.__telegram:
                     self.__telegram.send_status_message(ServerStatus.node_down.value.format(
                         ip=url,
@@ -144,10 +144,16 @@ class Status:
                 continue
             else:
                 if r.status_code == requests.codes.ok:
+                    if url in self.__last_error:
+                        del self.__last_error[url]
                     self.__merge_content(json.loads(r.text))
                 else:
                     self.__logger.error(
                         "Server returned {code} : {msg}".format(code=str(r.status_code), msg=str(r.reason)))
+                    if url in self.__last_error:
+                        if self.__last_error[url] == "HTTPError":
+                            continue
+                    self.__last_error[url] = "HTTPError"
                     if self.__telegram:
                         self.__telegram.send_status_message(ServerStatus.node_down.value.format(
                             ip=url,
