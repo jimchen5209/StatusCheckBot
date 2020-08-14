@@ -42,6 +42,7 @@ from telegram import ServerStatus
 class Status:
     __path = str(Path.home()) + '/.bot_status'
     data = {}
+    data_with_server = {}
     __last_error={}
 
     def __init__(self, main: Main):
@@ -66,6 +67,14 @@ class Status:
             self.update_status()
         return self.data
 
+    def get_detailed_status(self) -> dict:
+        if not self.__main_server:
+            self.update_status()
+        return self.data_with_server
+
+    def get_down_server(self) -> dict:
+        return self.__last_error
+
     def update_status(self, disable_telegram: bool = False) -> dict:
         old = self.data.copy()
         self.__update_status()
@@ -86,28 +95,19 @@ class Status:
         if len(updated) != 0:
             self.__logger.info("Updated: {0}".format(str(updated)))
             if self.__telegram and (not disable_telegram):
+                output = ""
                 for stat in updated:
                     current = updated[stat]
                     if current['update_type'] == 'updated':
-                        self.__telegram.send_status_message(
-                            (ServerStatus.online.value if current['online'] else ServerStatus.offline.value).format(
-                                name=stat
-                            )
-                        )
+                        output += (ServerStatus.online.value if current['online'] else ServerStatus.offline.value).format(name=stat)
                     elif current['update_type'] == 'new':
-                        self.__telegram.send_status_message(
-                            (
-                                ServerStatus.new_online.value
-                                if current['online'] else
-                                ServerStatus.new_offline.value
-                            ).format(
-                                name=stat
-                            )
-                        )
+                        output += (ServerStatus.new_online.value if current['online'] else ServerStatus.new_offline.value).format(name=stat)
                     elif current['update_type'] == 'removed':
-                        self.__telegram.send_status_message(ServerStatus.deleted.value.format(name=stat))
+                        output += ServerStatus.deleted.value.format(name=stat)
                     else:
-                        self.__telegram.send_status_message(ServerStatus.unknown.value.format(name=stat))
+                        output += ServerStatus.unknown.value.format(name=stat)
+                    output += '\n'
+                self.__telegram.send_status_message(output)
         return updated
 
     def __update_status(self):
@@ -119,11 +119,25 @@ class Status:
                 try:
                     p = psutil.Process(bot_status['pid'])
                     if p.cmdline()[1] == bot_status['cmdline'][0] and p.name().startswith('python'):
-                        self.data[bot_status['name']] = {'online': True}
+                        self.__set_data(bot_status['name'], True, 'python', 'local')
+                        continue
+                    if p.name().startswith('node'):
+                        if "pm2" in bot_status['cmdline'][1]:
+                            self.__logger.warning("Detected {0} running in pm2 container, which will expose itself instead of the rest of command line, will see it as online and will not scan if command line is correct.".format(bot_status['name']))
+                            self.__set_data(bot_status['name'], True, 'node-pm2', 'local')
+                            continue
+                        elif os.path.basename(p.cmdline()[1]) == os.path.basename(bot_status['cmdline'][1]):
+                            self.__set_data(bot_status['name'], True, 'node', 'local')
+                            continue
+                    self.__set_data(bot_status['name'], False, server='local')
                 except psutil.NoSuchProcess:
-                    self.data[bot_status['name']] = {'online': False}
+                    self.__set_data(bot_status['name'], False, server='local')
         if len(self.__nodes) != 0:
             self.__update_node()
+
+    def __set_data(self,name: str, online: bool, type: str = 'none', server: str = 'none'):
+        self.data[name] = {'online': online, 'type': type}
+        self.data_with_server[name] = {'online': online, 'type': type, 'server': server}
 
     def __update_node(self):
         for url in self.__nodes:
@@ -146,7 +160,7 @@ class Status:
                 if r.status_code == requests.codes.ok:
                     if url in self.__last_error:
                         del self.__last_error[url]
-                    self.__merge_content(json.loads(r.text))
+                    self.__merge_content(json.loads(r.text), url)
                 else:
                     self.__logger.error(
                         "Server returned {code} : {msg}".format(code=str(r.status_code), msg=str(r.reason)))
@@ -160,20 +174,23 @@ class Status:
                             message="{code} : {msg}".format(code=str(r.status_code), msg=str(r.reason))
                         ))
 
-    def __merge_content(self, new_data: dict):
+    def __merge_content(self, new_data: dict, server: str):
         for i in new_data:
             if i not in self.data:
                 self.data[i] = new_data[i]
+                self.data[i]['type'] = new_data[i]['type'] if 'type' in new_data[i] else 'python'
             else:
                 self.__logger.warning(
                     "{name} exists on both server side, trying to merge, consider deleting one of them".format(name=i))
                 if not self.data[i]['online'] and new_data[i]['online']:
                     self.data[i]['online'] = True
+                    self.data[i]['type'] = new_data[i]['type'] if 'type' in new_data[i] else 'python'
                 elif self.data[i]['online'] and not new_data[i]['online']:
                     pass
                 elif self.data[i]['online'] and new_data[i]['online']:
-                    self.__logger.warning(
-                        "{name} are both online!!! Consider closing or rename one of them".format(name=i))
+                    self.__logger.warning("{name} are both online!!! Consider closing or rename one of them".format(name=i))
                     self.data[i]['online'] = True
+                    self.data[i]['type'] = new_data[i]['type'] if 'type' in new_data[i] else 'python'
                 else:
                     pass
+            self.__set_data(i, self.data[i]['online'], self.data[i]['type'], server if new_data[i]['online'] else ('local' if self.data[i]['online'] else 'none'))

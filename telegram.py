@@ -26,15 +26,21 @@ from app import Main
 
 class ServerStatus(Enum):
     online = "✅ {name} is up"
+    server_online = "Server {name} is online:"
     online_list = "✅ {name} is online"
     online_sub = "✅ {name} is currently online"
     offline = "❌ {name} is down"
+    server_offline = "Server {name} is offline:\nLast Error: {reason}"
     offline_list = "❌ {name} is offline"
     offline_sub = "❌ {name} is currently offline"
     unknown = "❔ {name} returned a unknown status"
     new_online = "🆕✅ {name} just popped up and indicates online"
     new_offline = "🆕❌ {name} showed up but it is offline"
     deleted = "🗑 {name} has been deleted"
+    service_type = "✅ Service running in {lang}:"
+    service_type_offline = "❌ Service offline:"
+    service_type_unknown = "❔ Service with unknown status/type:"
+    service_empty = "❔ No service running on this server"
     node_down = "🚫 Errored when fetching status from node `{ip}`: {message}"
 
 
@@ -55,14 +61,31 @@ class Telegram:
 
         @self.dispatcher.message_handler(commands=['status'])
         async def get_status(message: types.Message):
-            status = self.__main.status.get_status()
-            msg = self.__status_to_string(status)
-            refresh_button = types.inline_keyboard.InlineKeyboardButton(
-                text="🔄 Refresh Now",
-                callback_data=json.dumps({'t': 'refresh', 'o': message.from_user.id})
-            )
-            markup = types.inline_keyboard.InlineKeyboardMarkup().add(refresh_button)
-            await message.reply(msg, reply_markup=markup)
+            args = message.get_args().split()
+            if len(args) == 0:
+                status = self.__main.status.get_status()
+                msg = self.__status_to_string(status)
+                refresh_button = types.inline_keyboard.InlineKeyboardButton(
+                    text="🔄 Refresh Now",
+                    callback_data=json.dumps({'t': 'refresh', 'o': message.from_user.id})
+                )
+                markup = types.inline_keyboard.InlineKeyboardMarkup().add(refresh_button)
+                await message.reply(msg, reply_markup=markup)
+            elif args[0] == '-d':
+                if message.from_user.id != self.__config.telegram_admin:
+                    await message.reply('Permission denied')
+                    return
+                status = self.__main.status.get_detailed_status()
+                msg = self.__detailed_status_to_string(status)
+                refresh_button = types.inline_keyboard.InlineKeyboardButton(
+                    text="🔄 Refresh Now",
+                    callback_data=json.dumps(
+                        {'t': 'refresh-detail', 'o': message.from_user.id})
+                )
+                markup = types.inline_keyboard.InlineKeyboardMarkup().add(refresh_button)
+                await message.reply(msg, reply_markup=markup)
+            else:
+                await message.reply('Invalid command')
 
         @self.dispatcher.callback_query_handler()
         async def on_callback_query(callback_query: types.CallbackQuery):
@@ -71,7 +94,7 @@ class Telegram:
                 await callback_query.answer("Invalid Button!")
                 await callback_query.message.edit_reply_markup(None)
                 return
-            if data['t'] == 'refresh':
+            if data['t'] == 'refresh' or data['t'] == 'refresh-detail':
                 if data['o'] != callback_query.message.reply_to_message.from_user.id:
                     await callback_query.answer("This button is not yours!!", show_alert=True)
                     return
@@ -82,8 +105,12 @@ class Telegram:
                 markup = types.inline_keyboard.InlineKeyboardMarkup().add(refreshing)
                 await callback_query.message.edit_reply_markup(markup)
                 self.__main.status.update_status(True)
-                status = self.__main.status.get_status()
-                msg = self.__status_to_string(status)
+                if data['t'] == 'refresh':
+                    status = self.__main.status.get_status()
+                    msg = self.__status_to_string(status)
+                elif data['t'] == 'refresh-detail':
+                    status = self.__main.status.get_detailed_status()
+                    msg = self.__detailed_status_to_string(status)
                 msg += '\nUpdated: {time}'.format(time=time.strftime("%Y/%m/%d %H:%M:%S"))
                 if callback_query.message.text != msg:
                     await callback_query.message.edit_text(msg, reply_markup=callback_query.message.reply_markup)
@@ -105,6 +132,56 @@ class Telegram:
                 msg += ServerStatus.online_list.value.format(name=name) + '\n'
             else:
                 msg += ServerStatus.offline_list.value.format(name=name) + '\n'
+        return msg
+
+    def __detailed_status_to_string(self, status: dict) -> str:
+        temp_data = {
+            'local': {}
+        }
+        for name in self.__config.nodes:
+            temp_data[name] = {}
+        msg = ""
+        for name in status:
+            if status[name]['online']:
+                if status[name]['type'] not in temp_data[status[name]['server']]:
+                    temp_data[status[name]['server']][status[name]['type']] = []
+                temp_data[status[name]['server']][status[name]['type']].append(name)
+            else:
+                if 'offline' not in temp_data[status[name]['server']]:
+                    temp_data[status[name]['server']]['offline'] = []
+                temp_data[status[name]['server']]['offline'].append(name)
+        last_error = self.__main.status.get_down_server()
+        for server in last_error:
+            temp_data[server]['error'] = last_error[server]
+
+        for server in temp_data:
+            if 'error' in temp_data[server]:
+                msg += ServerStatus.server_offline.value.format(name=server, reason=temp_data[server]['error']) + '\n'
+            else:
+                msg += ServerStatus.server_online.value.format(name=server) + '\n'
+                if temp_data[server] == {}:
+                    msg += '  ' + ServerStatus.service_empty.value + '\n\n'
+                else:
+                    for lang in temp_data[server]:
+                        if lang == 'python':
+                            msg += '  ' + ServerStatus.service_type.value.format(lang='Python') + '\n'
+                        elif lang == 'node':
+                            msg += '  ' + ServerStatus.service_type.value.format(lang='Node.JS') + '\n'
+                        elif lang == 'node-pm2':
+                            msg += '  ' + ServerStatus.service_type.value.format(lang='Node.JS with PM2') + '\n'
+                        elif lang == 'offline':
+                            continue
+                        else:
+                            msg += '  ' + ServerStatus.service_type_unknown.value + '\n'
+                        for i in temp_data[server][lang]:
+                            msg += '  - ' + i + '\n'
+                        msg += '\n'
+                    if 'offline' in temp_data[server]:
+                        msg += '  ' + ServerStatus.service_type_offline.value + '\n'
+                        for i in temp_data[server]['offline']:
+                            msg += '  - ' + i + '\n'
+                        msg += '\n'
+
         return msg
 
     def start(self):
