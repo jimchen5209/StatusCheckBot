@@ -122,11 +122,11 @@ class Status:
                         self.__set_data(bot_status['name'], True, 'python', 'local')
                         continue
                     if p.name().startswith('node'):
-                        if "pm2" in bot_status['cmdline'][1]:
-                            self.__logger.warning("Detected {0} running in pm2 container, which will expose itself instead of the rest of command line, will see it as online and will not scan if command line is correct.".format(bot_status['name']))
-                            self.__set_data(bot_status['name'], True, 'node-pm2', 'local')
-                            continue
-                        elif os.path.basename(p.cmdline()[1]) == os.path.basename(bot_status['cmdline'][1]):
+                        if bot_status['pm2']:
+                            if p.cmdline()[0].split(' ')[1] == bot_status['cmdline'][1]:
+                                self.__set_data(bot_status['name'], True, 'node-pm2', 'local')
+                                continue
+                        elif p.cmdline()[1] == bot_status['cmdline'][1]:
                             self.__set_data(bot_status['name'], True, 'node', 'local')
                             continue
                     self.__set_data(bot_status['name'], False, server='local')
