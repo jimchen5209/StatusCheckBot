@@ -122,7 +122,7 @@ class Status:
                         self.__set_data(bot_status['name'], True, 'python', 'local')
                         continue
                     if p.name().startswith('node'):
-                        if bot_status['pm2']:
+                        if 'pm2' in bot_status and bot_status['pm2']:
                             if p.cmdline()[0].split(' ')[1] == bot_status['cmdline'][1]:
                                 self.__set_data(bot_status['name'], True, 'node-pm2', 'local')
                                 continue
