@@ -27,6 +27,7 @@ from app import Main
 class ServerStatus(Enum):
     online = "✅ {name} is up"
     server_online = "Server {name} is online:"
+    server_unknown = "Service without server association:"
     online_list = "✅ {name} is online"
     online_sub = "✅ {name} is currently online"
     offline = "❌ {name} is down"
@@ -136,7 +137,8 @@ class Telegram:
 
     def __detailed_status_to_string(self, status: dict) -> str:
         temp_data = {
-            'local': {}
+            'local': {},
+            'none': {}
         }
         for name in self.__config.nodes:
             temp_data[name] = {}
@@ -155,6 +157,8 @@ class Telegram:
             temp_data[server]['error'] = last_error[server]
 
         for server in temp_data:
+            if server == 'none':
+                continue
             if 'error' in temp_data[server]:
                 msg += ServerStatus.server_offline.value.format(name=server, reason=temp_data[server]['error']) + '\n'
             else:
@@ -181,6 +185,12 @@ class Telegram:
                         for i in temp_data[server]['offline']:
                             msg += '  - ' + i + '\n'
                         msg += '\n'
+        
+        if 'offline' in temp_data['none']:
+            msg += ServerStatus.server_unknown.value + '\n  ' + ServerStatus.service_type_offline.value + '\n'
+            for i in temp_data['none']['offline']:
+                msg += '  - ' + i + '\n'
+            msg += '\n'
 
         return msg
 
