@@ -1,6 +1,6 @@
-requests
-psutil
-flask
-gevent
-aiogram
-ujson
+aiogram==3.1.1
+flask==3.0.0
+gevent==23.9.1
+psutil==5.9.6
+requests==2.31.0
+ujson==5.8.0
