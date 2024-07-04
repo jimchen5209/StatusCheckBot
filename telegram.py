@@ -88,6 +88,14 @@ class Telegram:
             else:
                 await message.reply('Invalid command')
 
+        @self.dispatcher.message_handler(commands=['privacy'])
+        async def reply(message: types.Message):
+            await message.reply(
+                'Jim\'s Bot Status is just a simple bot that shows the status of my servers, it does not store any data.\nBut some data need to be used for command and refresh button to work, for more information, please refer to the [Telegram\'s Privacy Policy](https://telegram.org/privacy#6-2-how-bots-can-receive-data).', 
+                parse_mode='Markdown',
+                disable_web_page_preview=True
+            )
+
         @self.dispatcher.callback_query_handler()
         async def on_callback_query(callback_query: types.CallbackQuery):
             data = json.loads(callback_query.data)
