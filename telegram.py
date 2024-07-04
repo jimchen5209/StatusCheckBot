@@ -71,7 +71,7 @@ class Telegram:
                     callback_data=json.dumps({'t': 'refresh', 'o': message.from_user.id})
                 )
                 markup = types.inline_keyboard.InlineKeyboardMarkup().add(refresh_button)
-                await message.reply(msg, reply_markup=markup)
+                await message.reply(msg if len(msg) != 0 else 'No services available.', reply_markup=markup)
             elif args[0] == '-d':
                 if message.from_user.id != self.__config.telegram_admin:
                     await message.reply('Permission denied')
@@ -84,7 +84,7 @@ class Telegram:
                         {'t': 'refresh-detail', 'o': message.from_user.id})
                 )
                 markup = types.inline_keyboard.InlineKeyboardMarkup().add(refresh_button)
-                await message.reply(msg, reply_markup=markup)
+                await message.reply(msg if len(msg) != 0 else 'No services available.', reply_markup=markup)
             else:
                 await message.reply('Invalid command')
 
